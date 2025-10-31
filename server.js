@@ -1,46 +1,53 @@
 const express = require('express');
-const AWS = require('aws-sdk');
-const path = require('path'); // Para servir HTML
+const ProductAdvertisingAPIv1 = require('paapi5-nodejs-sdk');
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // Para Vercel
 
-// Tus claves de Amazon AQUÍ (seguras, solo en este archivo)
-const accessKeyId = process.env.ACCESS_KEY_ID;
-const secretAccessKey = process.env.SECRET_ACCESS_KEY;
-const partnerTag = process.env.PARTNER_TAG;
-const region = 'us-east-1';
-
-// Configura el cliente de PA API (usa SDK para simplicidad)
-AWS.config.update({
-    accessKeyId: accessKeyId,
-    secretAccessKey: secretAccessKey,
-    region: region
+// Añade CORS (permite llamadas desde cualquier origen, como AppCreator24)
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    next();
 });
-const paapi = new AWS.PAAPI({ endpoint: new AWS.Endpoint('webservices.amazon.com') });
 
-// Sirve archivos estáticos (como tu HTML)
-app.use(express.static(path.join(__dirname, '/')));
+// Configura el cliente PA API con env vars
+const defaultClient = ProductAdvertisingAPIv1.ApiClient.instance;
+defaultClient.accessKey = process.env.ACCESS_KEY_ID;
+defaultClient.secretKey = process.env.SECRET_ACCESS_KEY;
+defaultClient.host = 'webservices.amazon.com';
+defaultClient.region = 'us-east-1';
 
-// Endpoint para búsqueda de ofertas
+const api = new ProductAdvertisingAPIv1.DefaultApi();
+
+// Endpoint para búsqueda
 app.get('/api/search', async (req, res) => {
     const keyword = req.query.keyword || 'black friday deals';
+    const searchItemsRequest = new ProductAdvertisingAPIv1.SearchItemsRequest();
+
+    searchItemsRequest['PartnerTag'] = process.env.PARTNER_TAG;
+    searchItemsRequest['PartnerType'] = 'Associates';
+    searchItemsRequest['Keywords'] = keyword;
+    searchItemsRequest['SearchIndex'] = 'All';
+    searchItemsRequest['Resources'] = ['ItemInfo.Title', 'Offers.Listings.Price', 'Images.Primary.Medium'];
+
     try {
-        const params = {
-            Keywords: keyword,
-            SearchIndex: 'All',
-            Resources: ['ItemInfo.Title', 'Offers.Listings.Price', 'Images.Primary.Medium'],
-            PartnerTag: partnerTag,
-            PartnerType: 'Associates'
-        };
-        const data = await paapi.searchItems(params).promise();
+        const data = await new Promise((resolve, reject) => {
+            api.searchItems(searchItemsRequest, (error, data, response) => {
+                if (error) reject(error);
+                else resolve(data);
+            });
+        });
         res.json(data);
     } catch (error) {
-        console.error('Error en API:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Error en PA API:', error);
+        res.status(500).json({ error: error.message || 'Error en el servidor' });
     }
 });
 
-// Inicia el servidor
+// Ruta base para testing (opcional)
+app.get('/', (req, res) => res.send('Backend corriendo!'));
+
 app.listen(port, () => {
-    console.log(`Servidor corriendo en http://localhost:${port}`);
+    console.log(`Servidor en puerto ${port}`);
 });
