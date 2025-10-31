@@ -5,9 +5,9 @@ const app = express();
 const port = 3000;
 
 // Tus claves de Amazon AQUÍ (seguras, solo en este archivo)
-const accessKeyId = 'AKPA1DNYMU1761666167';
-const secretAccessKey = 'x6pKy4BcQ2x21ADD1vZFArBTny9qPwhCM6aGli9y';
-const partnerTag = 'fluque23-20';
+const accessKeyId = process.env.ACCESS_KEY_ID;
+const secretAccessKey = process.env.SECRET_ACCESS_KEY;
+const partnerTag = process.env.PARTNER_TAG;
 const region = 'us-east-1';
 
 // Configura el cliente de PA API (usa SDK para simplicidad)
